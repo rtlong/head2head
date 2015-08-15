@@ -25,14 +25,17 @@ var globs = {
   sass: ['src/**/*.scss'],
 }
 
-var bundler = watchify(browserify(watchify.args)).
-  transform(babelify).
-  add('./src/index.js').
-  on('update', buildBrowserBundle).
-  on('log', gutil.log)
-
-function buildBrowserBundle() {
+function wrapWatchify(bundler, watch) {
+  if (watch) { return watchify(bundler) }
   return bundler
+}
+
+function buildBrowserBundle(watch) {
+  var bundler = wrapWatchify(browserify(watchify.args), watch)
+    .transform(babelify)
+    .add('./src/index.js')
+    .on('update', buildBrowserBundle)
+    .on('log', gutil.log)
     .bundle()
     .on('error', gutil.log.bind(gutil, 'Browserify Error')) // log errors if they happen
     .pipe(source('index.js'))
@@ -45,7 +48,8 @@ function buildBrowserBundle() {
     .pipe(browserSync.reload({ stream: true }))
 }
 
-gulp.task('js-bundle', buildBrowserBundle)
+gulp.task('js-bundle', function () { return buildBrowserBundle(false) })
+gulp.task('watch-js-bundle', function () { return buildBrowserBundle(true) })
 gulp.task('html-bundle', function () {
   return gulp.src(globs.html)
     .pipe(gulp.dest('./dist'))
